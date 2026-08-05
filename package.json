@@ -1,0 +1,19 @@
+{
+  "name": "homehub-reel-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "External render worker for HomeHub AI Reels — turns listing photos into a captioned pan/zoom mp4.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "express": "^4.19.2",
+    "openai": "^4.67.0"
+  }
+}
