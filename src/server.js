@@ -3,7 +3,16 @@ import { config, assertConfig } from './config.js';
 import { runPipeline } from './pipeline.js';
 import { log } from './log.js';
 
-assertConfig();
+// Surface any boot-time crash in the deploy logs instead of dying silently.
+process.on('uncaughtException', (e) => log.error('uncaughtException', e));
+process.on('unhandledRejection', (e) => log.error('unhandledRejection', e));
+
+try {
+  assertConfig();
+} catch (e) {
+  log.error('CONFIG ERROR at boot —', e?.message);
+  process.exit(1);
+}
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -29,4 +38,14 @@ app.post('/render', (req, res) => {
   runPipeline(job).catch((err) => log.error('pipeline crashed (unhandled)', err));
 });
 
-app.listen(config.port, () => log.info(`reel worker listening on :${config.port}`));
+// Bind explicitly to 0.0.0.0 and the platform-provided PORT. Railway's healthcheck cannot
+// reach an app that only binds the default (::/localhost) interface — the #1 cause of a
+// "service unavailable" healthcheck when the container otherwise built and deployed fine.
+const port = Number(process.env.PORT) || 8080;
+const server = app.listen(port, '0.0.0.0', () => {
+  log.info(`reel worker listening on 0.0.0.0:${port}`);
+});
+server.on('error', (e) => {
+  log.error('listen error', e);
+  process.exit(1);
+});
