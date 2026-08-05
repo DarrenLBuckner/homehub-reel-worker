@@ -1,7 +1,8 @@
 # FFmpeg + a caption font must exist in the runtime — that's the whole reason this
-# render lives here and not in a Vercel serverless function. node:20-slim + apt is the
+# render lives here and not in a Vercel serverless function. node:22-slim + apt is the
 # most reliable way to guarantee both on Railway.
-FROM node:20-slim
+# Node 22 (not 20): @supabase/supabase-js needs a global WebSocket, which Node 20 lacks.
+FROM node:22-slim
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core ca-certificates \

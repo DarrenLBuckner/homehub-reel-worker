@@ -5,7 +5,7 @@
   "description": "External render worker for HomeHub AI Reels — turns listing photos into a captioned pan/zoom mp4.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node src/server.js",
