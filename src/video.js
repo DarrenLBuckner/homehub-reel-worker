@@ -34,12 +34,13 @@ const CLIP_FRAMES = Math.round(config.clipSeconds * config.fps);
 // One Ken Burns (zoompan) clip per image, with the caption burned into a lower-third.
 async function buildClip(imgPath, captionFile, outPath) {
   const { width, height, fps, fontFile } = config;
-  // Scale up first so zoompan doesn't jitter, crop to frame, slow zoom-in, then caption.
+  // Cover a 2560x1440 frame (a modest 1.33x over the 1920x1080 output — enough headroom to
+  // keep the zoom smooth without the memory blowup of the old 8000px pre-scale), then slow
+  // zoom-in down to the output size, then caption.
   const vf =
-    `[0:v]scale=8000:-1,` +
+    `[0:v]scale=2560:1440:force_original_aspect_ratio=increase,crop=2560:1440,setsar=1,` +
     `zoompan=z='min(zoom+0.0012,1.35)':d=${CLIP_FRAMES}:` +
-    `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps},` +
-    `setsar=1[z];` +
+    `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}[z];` +
     `[z]drawtext=fontfile='${fontFile}':textfile='${captionFile}':reload=0:` +
     `fontcolor=white:fontsize=44:line_spacing=8:` +
     `box=1:boxcolor=black@0.5:boxborderw=22:x=64:y=h-th-64[v]`;
