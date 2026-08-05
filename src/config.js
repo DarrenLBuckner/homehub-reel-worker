@@ -25,6 +25,10 @@ export const config = {
   transitionSeconds: 0.6,
   maxImages: 12, // bound render time / cost
   fontFile: process.env.CAPTION_FONT || '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+  // Cap x264 threads. In a container, x264 otherwise auto-detects the HOST core count
+  // (e.g. 34) and allocates per-thread encoder buffers on init — which SIGKILLs the
+  // process on a small container. A low fixed count keeps memory bounded.
+  x264Threads: Number(process.env.X264_THREADS) || 2,
 };
 
 // Fail fast at boot if the hard requirements are missing. OPENAI/MUSIC are soft (narration

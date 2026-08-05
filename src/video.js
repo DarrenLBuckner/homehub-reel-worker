@@ -21,10 +21,11 @@ function runFFmpeg(args) {
       stderr += d.toString();
     });
     proc.on('error', reject);
-    proc.on('close', (code) => {
+    proc.on('close', (code, signal) => {
       if (code === 0) return resolve();
-      // ffmpeg is verbose; surface the tail where the actual error lives.
-      reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-1200)}`));
+      // signal is set when the process was killed (e.g. SIGKILL = OOM), which is far more
+      // diagnostic than a null exit code. ffmpeg is verbose; surface the stderr tail too.
+      reject(new Error(`ffmpeg exited code=${code} signal=${signal}: ${stderr.slice(-1200)}`));
     });
   });
 }
@@ -53,6 +54,7 @@ async function buildClip(imgPath, captionFile, outPath) {
     '-filter_complex', vf,
     '-map', '[v]',
     '-c:v', 'libx264',
+    '-threads', String(config.x264Threads),
     '-preset', 'veryfast',
     '-pix_fmt', 'yuv420p',
     '-r', String(fps),
@@ -91,6 +93,7 @@ async function crossfadeClips(clipPaths, outPath) {
     '-filter_complex', filter,
     '-map', '[vout]',
     '-c:v', 'libx264',
+    '-threads', String(config.x264Threads),
     '-preset', 'veryfast',
     '-pix_fmt', 'yuv420p',
     '-r', String(config.fps),
