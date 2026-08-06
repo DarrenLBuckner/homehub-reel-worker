@@ -49,10 +49,14 @@ async function buildClip(imgPath, captionFile, outPath) {
   await runFFmpeg([
     '-y',
     '-loop', '1',
-    '-t', String(config.clipSeconds),
+    '-framerate', String(fps),
     '-i', imgPath,
     '-filter_complex', vf,
     '-map', '[v]',
+    // Hard-cap the clip to exactly CLIP_FRAMES. The old input-side `-t` combined with
+    // zoompan's `d` produced clips several times too long, which broke the crossfade
+    // offsets and ballooned the composite to minutes (→ OOM). -frames:v is unambiguous.
+    '-frames:v', String(CLIP_FRAMES),
     '-c:v', 'libx264',
     '-threads', String(config.x264Threads),
     '-preset', 'veryfast',
