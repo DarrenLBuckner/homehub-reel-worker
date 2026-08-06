@@ -13,14 +13,17 @@ function listTracks() {
       log.warn('MUSIC_PATH set but file not found:', config.musicPath);
     }
   }
+  // Region-scoped: assets/music/{region}/*.mp3. A property only ever draws from its territory's
+  // sound, so adding another region's tracks later can't leak into Guyana's reels.
+  const regionDir = path.join(config.musicDir, config.musicRegion);
   try {
     return fs
-      .readdirSync(config.musicDir)
+      .readdirSync(regionDir)
       .filter((f) => f.toLowerCase().endsWith('.mp3'))
       .sort()
-      .map((f) => path.join(config.musicDir, f));
+      .map((f) => path.join(regionDir, f));
   } catch {
-    return []; // no music dir / no tracks -> reels render without music (unchanged behavior)
+    return []; // no tracks for this region -> reels render without music (unchanged behavior)
   }
 }
 

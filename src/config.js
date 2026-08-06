@@ -21,6 +21,10 @@ export const config = {
   // auto-discovered and mixed as a low-volume bed — zero per-render cost. No files => silent
   // behavior (unchanged). Legacy MUSIC_PATH still honored as an explicit single-track override.
   musicDir: process.env.MUSIC_DIR || path.join(process.cwd(), 'assets', 'music'),
+  // Music is organised by region (assets/music/{region}/*.mp3) so each territory gets its own
+  // sound — Caribbean/Soca for Guyana, Latin for DR, Afrobeats for Africa, etc. Defaults to
+  // caribbean for now; when the reel job carries a country/region, set this per-job from it.
+  musicRegion: process.env.MUSIC_REGION || 'caribbean',
   musicPath: process.env.MUSIC_PATH || '',
   musicVolume: Number(process.env.MUSIC_VOLUME) || 0.18, // bed level under the voiceover
   musicVolumeNoVoice: Number(process.env.MUSIC_VOLUME_NO_VOICE) || 0.35, // louder if no narration
