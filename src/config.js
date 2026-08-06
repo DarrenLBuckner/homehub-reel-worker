@@ -26,8 +26,8 @@ export const config = {
   // caribbean for now; when the reel job carries a country/region, set this per-job from it.
   musicRegion: process.env.MUSIC_REGION || 'caribbean',
   musicPath: process.env.MUSIC_PATH || '',
-  musicVolume: Number(process.env.MUSIC_VOLUME) || 0.18, // bed level under the voiceover
-  musicVolumeNoVoice: Number(process.env.MUSIC_VOLUME_NO_VOICE) || 0.35, // louder if no narration
+  musicVolume: Number(process.env.MUSIC_VOLUME) || 0.4, // bed level under the voiceover
+  musicVolumeNoVoice: Number(process.env.MUSIC_VOLUME_NO_VOICE) || 0.6, // louder if no narration
 
   // Render tuning.
   width: 1920,
