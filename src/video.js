@@ -67,42 +67,44 @@ async function buildClip(imgPath, captionFile, outPath) {
   ]);
 }
 
-// Cross-fade the clips into one silent video. For equal-length clips of duration D and
-// transition T, each xfade offset advances by (D - T).
-async function crossfadeClips(clipPaths, outPath) {
+// Cross-fade the clips into one silent video — PAIRWISE (2 inputs at a time), not all N
+// clips in a single filtergraph. Feeding 10 clips into one ffmpeg opens 10 simultaneous
+// 1080p H.264 decoders at init (~700MB+), which SIGKILLs the process on a small container.
+// Pairwise keeps exactly 2 decoders open at any moment, so memory stays flat regardless of
+// clip count. Cost: N-1 sequential encodes of the growing accumulator (slower, but bounded).
+async function crossfadeClips(clipPaths, outPath, dir) {
   if (clipPaths.length === 1) {
     await fs.copyFile(clipPaths[0], outPath);
     return;
   }
-  const { transitionSeconds, clipSeconds } = config;
-  const step = clipSeconds - transitionSeconds;
+  const { transitionSeconds, clipSeconds, fps, x264Threads } = config;
 
-  const inputs = [];
-  clipPaths.forEach((p) => inputs.push('-i', p));
+  let accPath = clipPaths[0];
+  let accDuration = clipSeconds; // each clip is hard-capped to exactly clipSeconds
 
-  let filter = '';
-  let last = '[0:v]';
-  let offset = 0;
   for (let i = 1; i < clipPaths.length; i++) {
-    offset += step;
-    const out = i === clipPaths.length - 1 ? '[vout]' : `[x${i}]`;
-    filter += `${last}[${i}:v]xfade=transition=fade:duration=${transitionSeconds}:offset=${offset.toFixed(3)}${out};`;
-    last = out;
-  }
-  filter = filter.replace(/;$/, '');
+    const offset = Math.max(0, accDuration - transitionSeconds);
+    const isLast = i === clipPaths.length - 1;
+    const stepOut = isLast ? outPath : path.join(dir, `xf_${String(i).padStart(3, '0')}.mp4`);
 
-  await runFFmpeg([
-    '-y',
-    ...inputs,
-    '-filter_complex', filter,
-    '-map', '[vout]',
-    '-c:v', 'libx264',
-    '-threads', String(config.x264Threads),
-    '-preset', 'veryfast',
-    '-pix_fmt', 'yuv420p',
-    '-r', String(config.fps),
-    outPath,
-  ]);
+    await runFFmpeg([
+      '-y',
+      '-i', accPath,
+      '-i', clipPaths[i],
+      '-filter_complex',
+      `[0:v][1:v]xfade=transition=fade:duration=${transitionSeconds}:offset=${offset.toFixed(3)}[v]`,
+      '-map', '[v]',
+      '-c:v', 'libx264',
+      '-threads', String(x264Threads),
+      '-preset', 'veryfast',
+      '-pix_fmt', 'yuv420p',
+      '-r', String(fps),
+      stepOut,
+    ]);
+
+    accPath = stepOut;
+    accDuration = offset + clipSeconds;
+  }
 }
 
 // Mux narration over the silent video. Video length drives the output (no -shortest),
@@ -138,7 +140,7 @@ export async function renderVideo(imagePaths, listing, narrationPath, dir) {
   }
 
   const silent = path.join(dir, 'silent.mp4');
-  await crossfadeClips(clipPaths, silent);
+  await crossfadeClips(clipPaths, silent, dir);
 
   const final = path.join(dir, 'reel.mp4');
   await muxAudio(silent, narrationPath, final);
