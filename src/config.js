@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 export const config = {
   port: process.env.PORT || 8080,
 
@@ -15,7 +17,13 @@ export const config = {
   bucket: process.env.REEL_BUCKET || 'property-videos',
 
   ttsVoice: process.env.TTS_VOICE || 'nova',
-  musicPath: process.env.MUSIC_PATH || '', // deferred; render works without it
+  // Bundled royalty-free tracks live here (committed to the image). Any .mp3 dropped in is
+  // auto-discovered and mixed as a low-volume bed — zero per-render cost. No files => silent
+  // behavior (unchanged). Legacy MUSIC_PATH still honored as an explicit single-track override.
+  musicDir: process.env.MUSIC_DIR || path.join(process.cwd(), 'assets', 'music'),
+  musicPath: process.env.MUSIC_PATH || '',
+  musicVolume: Number(process.env.MUSIC_VOLUME) || 0.18, // bed level under the voiceover
+  musicVolumeNoVoice: Number(process.env.MUSIC_VOLUME_NO_VOICE) || 0.35, // louder if no narration
 
   // Render tuning.
   width: 1920,

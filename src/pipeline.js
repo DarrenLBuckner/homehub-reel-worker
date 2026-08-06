@@ -1,6 +1,7 @@
 import { log } from './log.js';
 import { makeWorkDir, cleanup, downloadImages, deriveUserIdFromImages } from './util.js';
 import { synthesizeNarration } from './tts.js';
+import { pickMusicTrack } from './music.js';
 import { renderVideo } from './video.js';
 import { uploadVideo } from './storage.js';
 import { sendCallback } from './callback.js';
@@ -24,8 +25,9 @@ export async function runPipeline(job) {
     log.info('downloaded images', propertyId, localImages.length);
 
     const narration = await synthesizeNarration(job.listing || {}, workdir); // null on failure
+    const musicTrack = pickMusicTrack(propertyId); // null if no tracks bundled
 
-    const videoPath = await renderVideo(localImages, job.listing || {}, narration, workdir);
+    const videoPath = await renderVideo(localImages, job.listing || {}, narration, musicTrack, workdir);
 
     const objectPath = `${userId}/${propertyId}-reel.mp4`;
     const publicUrl = await uploadVideo(videoPath, objectPath);

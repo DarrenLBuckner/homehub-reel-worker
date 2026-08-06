@@ -107,28 +107,73 @@ async function crossfadeClips(clipPaths, outPath, dir) {
   }
 }
 
-// Mux narration over the silent video. Video length drives the output (no -shortest),
-// so a short narration just leaves trailing silence rather than truncating the visuals.
-async function muxAudio(silentVideo, narrationPath, outPath) {
-  if (!narrationPath) {
+// Lay audio over the silent video. Handles four cases: silent, narration-only, music-only,
+// and narration + music. Music is a LOW-VOLUME BED — full-volume narration sits on top, and
+// the music keeps playing after the (shorter) narration ends. `finalDuration` is the reel
+// length; we trim to it with -t so looped music doesn't run past the video.
+async function muxAudio(silentVideo, narrationPath, musicPath, finalDuration, outPath) {
+  // Silent — no audio at all.
+  if (!narrationPath && !musicPath) {
     await fs.copyFile(silentVideo, outPath);
     return;
   }
+
+  // Narration only (no music) — video length drives; short narration = trailing silence.
+  if (narrationPath && !musicPath) {
+    await runFFmpeg([
+      '-y',
+      '-i', silentVideo,
+      '-i', narrationPath,
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      outPath,
+    ]);
+    return;
+  }
+
+  // Music only (no narration) — looped bed, a touch louder since nothing competes with it.
+  if (!narrationPath && musicPath) {
+    await runFFmpeg([
+      '-y',
+      '-i', silentVideo,
+      '-stream_loop', '-1', '-i', musicPath,
+      '-filter_complex', `[1:a]volume=${config.musicVolumeNoVoice}[a]`,
+      '-map', '0:v:0',
+      '-map', '[a]',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-t', finalDuration.toFixed(3),
+      outPath,
+    ]);
+    return;
+  }
+
+  // Narration + music. Music at bed volume, narration at full; amix duration=longest keeps
+  // the music going after narration ends; normalize=0 preserves our explicit volumes.
   await runFFmpeg([
     '-y',
     '-i', silentVideo,
     '-i', narrationPath,
+    '-stream_loop', '-1', '-i', musicPath,
+    '-filter_complex',
+    `[2:a]volume=${config.musicVolume}[m];[1:a]volume=1[n];` +
+      `[m][n]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]`,
     '-map', '0:v:0',
-    '-map', '1:a:0',
+    '-map', '[a]',
     '-c:v', 'copy',
     '-c:a', 'aac',
     '-b:a', '160k',
+    '-t', finalDuration.toFixed(3),
     outPath,
   ]);
 }
 
 // Orchestrate: per-clip -> crossfade -> audio. Returns the final mp4 path.
-export async function renderVideo(imagePaths, listing, narrationPath, dir) {
+export async function renderVideo(imagePaths, listing, narrationPath, musicPath, dir) {
   const captionFile = path.join(dir, 'caption.txt');
   await fs.writeFile(captionFile, buildCaption(listing) || ' ');
 
@@ -142,8 +187,12 @@ export async function renderVideo(imagePaths, listing, narrationPath, dir) {
   const silent = path.join(dir, 'silent.mp4');
   await crossfadeClips(clipPaths, silent, dir);
 
+  // Crossfade output length for N equal clips of duration D and transition T.
+  const finalDuration =
+    config.clipSeconds + (clipPaths.length - 1) * (config.clipSeconds - config.transitionSeconds);
+
   const final = path.join(dir, 'reel.mp4');
-  await muxAudio(silent, narrationPath, final);
+  await muxAudio(silent, narrationPath, musicPath, finalDuration, final);
   log.info('render complete', final);
   return final;
 }
