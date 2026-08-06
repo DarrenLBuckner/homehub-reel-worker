@@ -32,8 +32,9 @@ function runFFmpeg(args) {
 
 const CLIP_FRAMES = Math.round(config.clipSeconds * config.fps);
 
-// One Ken Burns (zoompan) clip per image, with the caption burned into a lower-third.
-async function buildClip(imgPath, captionFile, outPath) {
+// One Ken Burns (zoompan) clip per image, with the caption burned into a lower-third and the
+// brand mark burned into the top-right (white + dark outline so it reads on any footage).
+async function buildClip(imgPath, captionFile, brandFile, outPath) {
   const { width, height, fps, fontFile } = config;
   // Cover a 2560x1440 frame (a modest 1.33x over the 1920x1080 output — enough headroom to
   // keep the zoom smooth without the memory blowup of the old 8000px pre-scale), then slow
@@ -44,7 +45,9 @@ async function buildClip(imgPath, captionFile, outPath) {
     `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}[z];` +
     `[z]drawtext=fontfile='${fontFile}':textfile='${captionFile}':reload=0:` +
     `fontcolor=white:fontsize=44:line_spacing=8:` +
-    `box=1:boxcolor=black@0.5:boxborderw=22:x=64:y=h-th-64[v]`;
+    `box=1:boxcolor=black@0.5:boxborderw=22:x=64:y=h-th-64[c];` +
+    `[c]drawtext=fontfile='${fontFile}':textfile='${brandFile}':reload=0:` +
+    `fontcolor=white@0.7:fontsize=34:borderw=3:bordercolor=black@0.6:x=w-tw-40:y=40[v]`;
 
   await runFFmpeg([
     '-y',
@@ -176,11 +179,13 @@ async function muxAudio(silentVideo, narrationPath, musicPath, finalDuration, ou
 export async function renderVideo(imagePaths, listing, narrationPath, musicPath, dir) {
   const captionFile = path.join(dir, 'caption.txt');
   await fs.writeFile(captionFile, buildCaption(listing) || ' ');
+  const brandFile = path.join(dir, 'brand.txt');
+  await fs.writeFile(brandFile, config.brand || ' ');
 
   const clipPaths = [];
   for (let i = 0; i < imagePaths.length; i++) {
     const clip = path.join(dir, `clip_${String(i).padStart(3, '0')}.mp4`);
-    await buildClip(imagePaths[i], captionFile, clip);
+    await buildClip(imagePaths[i], captionFile, brandFile, clip);
     clipPaths.push(clip);
   }
 

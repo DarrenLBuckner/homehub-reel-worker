@@ -17,6 +17,8 @@ export const config = {
   bucket: process.env.REEL_BUCKET || 'property-videos',
 
   ttsVoice: process.env.TTS_VOICE || 'nova',
+  // Brand burned into every reel (top-right) — anti-theft + branding, per territory.
+  brand: process.env.REEL_BRAND || 'Guyana Home Hub',
   // Bundled royalty-free tracks live here (committed to the image). Any .mp3 dropped in is
   // auto-discovered and mixed as a low-volume bed — zero per-render cost. No files => silent
   // behavior (unchanged). Legacy MUSIC_PATH still honored as an explicit single-track override.
