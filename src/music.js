@@ -39,6 +39,34 @@ export function pickMusicTrack(propertyId) {
     hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
   }
   const track = tracks[Math.abs(hash) % tracks.length];
-  log.info('music track selected', track);
+  log.info('music track selected (auto)', track);
   return track;
+}
+
+// Resolve the music track for a job, honoring the caller's explicit choice:
+//   'none'                 -> no music (silent bed)
+//   'auto' | undefined     -> deterministic auto-pick (pickMusicTrack)
+//   '<filename>.mp3'       -> that specific bundled track, if it exists in this region
+// The requested value is reduced to a bare basename (path.basename) so it can never escape
+// the region folder — a caller can only ever select a file we actually bundled. An unknown
+// or missing filename falls back to the auto-pick rather than rendering silent unexpectedly.
+export function resolveMusicTrack(propertyId, requested) {
+  const choice = typeof requested === 'string' ? requested.trim() : '';
+
+  if (choice.toLowerCase() === 'none') {
+    log.info('music: explicitly disabled for this reel');
+    return null;
+  }
+  if (choice && choice.toLowerCase() !== 'auto') {
+    const safe = path.basename(choice); // strip any path components
+    const full = path.join(config.musicDir, config.musicRegion, safe);
+    try {
+      fs.accessSync(full);
+      log.info('music track selected (chosen)', full);
+      return full;
+    } catch {
+      log.warn('requested music track not found, falling back to auto:', safe);
+    }
+  }
+  return pickMusicTrack(propertyId);
 }
