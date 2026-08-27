@@ -17,8 +17,12 @@ export const config = {
   bucket: process.env.REEL_BUCKET || 'property-videos',
 
   ttsVoice: process.env.TTS_VOICE || 'nova',
-  // Brand burned into every reel (top-right) — anti-theft + branding, per territory.
-  brand: process.env.REEL_BRAND || 'Guyana Home Hub',
+  // Fallback brand burned into a reel (top-right) — anti-theft + branding. Per-country
+  // branding is data-driven: the Portal sends the territory's display_name as job.brand
+  // (e.g. "Dominican Republic HomeHub"), so a new country going live needs NO code here.
+  // This value is only used when a job carries no brand — kept NEUTRAL so an un-branded
+  // job is never mis-stamped with another country's name.
+  brand: process.env.REEL_BRAND || 'HomeHub',
   // Bundled royalty-free tracks live here (committed to the image). Any .mp3 dropped in is
   // auto-discovered and mixed as a low-volume bed — zero per-render cost. No files => silent
   // behavior (unchanged). Legacy MUSIC_PATH still honored as an explicit single-track override.

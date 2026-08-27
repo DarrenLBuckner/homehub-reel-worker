@@ -176,11 +176,13 @@ async function muxAudio(silentVideo, narrationPath, musicPath, finalDuration, ou
 }
 
 // Orchestrate: per-clip -> crossfade -> audio. Returns the final mp4 path.
-export async function renderVideo(imagePaths, listing, narrationPath, musicPath, dir) {
+// `brand` is the per-job watermark text (the listing's territory display_name); it falls
+// back to the neutral config default so a job without a brand is never stamped Guyana.
+export async function renderVideo(imagePaths, listing, narrationPath, musicPath, dir, brand) {
   const captionFile = path.join(dir, 'caption.txt');
   await fs.writeFile(captionFile, buildCaption(listing) || ' ');
   const brandFile = path.join(dir, 'brand.txt');
-  await fs.writeFile(brandFile, config.brand || ' ');
+  await fs.writeFile(brandFile, brand || config.brand || ' ');
 
   const clipPaths = [];
   for (let i = 0; i < imagePaths.length; i++) {

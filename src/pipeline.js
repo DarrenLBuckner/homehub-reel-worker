@@ -28,7 +28,9 @@ export async function runPipeline(job) {
     // Honor an explicit track choice from the job (job.music); 'auto'/absent = deterministic pick.
     const musicTrack = resolveMusicTrack(propertyId, job.music); // null if 'none' or no tracks bundled
 
-    const videoPath = await renderVideo(localImages, job.listing || {}, narration, musicTrack, workdir);
+    // job.brand is the listing territory's display_name (e.g. "Dominican Republic HomeHub"),
+    // sent by the Portal so per-country branding needs no code here. Falls back to neutral.
+    const videoPath = await renderVideo(localImages, job.listing || {}, narration, musicTrack, workdir, job.brand);
 
     const objectPath = `${userId}/${propertyId}-reel.mp4`;
     const publicUrl = await uploadVideo(videoPath, objectPath);
