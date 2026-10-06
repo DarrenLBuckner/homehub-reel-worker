@@ -35,19 +35,30 @@ const CLIP_FRAMES = Math.round(config.clipSeconds * config.fps);
 // One Ken Burns (zoompan) clip per image, with the caption burned into a lower-third and the
 // brand mark burned into the top-right (white + dark outline so it reads on any footage).
 async function buildClip(imgPath, captionFile, brandFile, outPath) {
-  const { width, height, fps, fontFile } = config;
-  // Cover a 2560x1440 frame (a modest 1.33x over the 1920x1080 output — enough headroom to
-  // keep the zoom smooth without the memory blowup of the old 8000px pre-scale), then slow
-  // zoom-in down to the output size, then caption.
+  const { width, height, preWidth, preHeight, fps, fontFile } = config;
+  // Vertical 9:16 canvas of preWidth x preHeight (1.33x the output — enough headroom to keep
+  // the zoom smooth without the memory blowup of the old 8000px pre-scale). Property photos are
+  // mostly landscape, so a cover-crop into 9:16 would keep only ~1/3 of the picture. Instead the
+  // photo is fitted whole, centred, over a heavily blurred copy of itself that fills the frame
+  // (the standard Reels look). The blur is built on a 1/10-size copy, so it costs almost nothing.
+  // Then slow zoom-in down to the output size, then caption + brand.
+  const bgW = Math.round(preWidth / 10);
+  const bgH = Math.round(preHeight / 10);
   const vf =
-    `[0:v]scale=2560:1440:force_original_aspect_ratio=increase,crop=2560:1440,setsar=1,` +
+    `[0:v]split=2[bgsrc][fgsrc];` +
+    `[bgsrc]scale=${bgW}:${bgH}:force_original_aspect_ratio=increase,crop=${bgW}:${bgH},` +
+    `gblur=sigma=3,scale=${preWidth}:${preHeight},eq=brightness=-0.08[bg];` +
+    `[fgsrc]scale=${preWidth}:${preHeight}:force_original_aspect_ratio=decrease[fg];` +
+    `[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,` +
     `zoompan=z='min(zoom+0.0012,1.35)':d=${CLIP_FRAMES}:` +
     `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}[z];` +
+    // Caption sits ~300px up from the bottom and the brand ~150px down from the top, clear of
+    // the zones WhatsApp Status / Facebook / Instagram cover with their own buttons and captions.
     `[z]drawtext=fontfile='${fontFile}':textfile='${captionFile}':reload=0:` +
     `fontcolor=white:fontsize=44:line_spacing=8:` +
-    `box=1:boxcolor=black@0.5:boxborderw=22:x=64:y=h-th-64[c];` +
+    `box=1:boxcolor=black@0.6:boxborderw=22:x=64:y=h-th-300[c];` +
     `[c]drawtext=fontfile='${fontFile}':textfile='${brandFile}':reload=0:` +
-    `fontcolor=white@0.7:fontsize=34:borderw=3:bordercolor=black@0.6:x=w-tw-40:y=40[v]`;
+    `fontcolor=white@0.7:fontsize=34:borderw=3:bordercolor=black@0.6:x=w-tw-40:y=150[v]`;
 
   await runFFmpeg([
     '-y',
