@@ -60,6 +60,23 @@ export function formatPrice(price, currency) {
   return `${currency || ''} ${amount}`.trim();
 }
 
+// Greedy word-wrap so long lines (addresses) fit inside the narrow vertical frame instead of
+// running off the edge. A single word longer than `max` is left on its own line.
+export function wrapText(text, max) {
+  const out = [];
+  let line = '';
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    if (line && (line + ' ' + word).length > max) {
+      out.push(line);
+      line = word;
+    } else {
+      line = line ? line + ' ' + word : word;
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
 // Build the burned-in caption block from listing facts.
 export function buildCaption(listing = {}) {
   const lines = [];
@@ -69,7 +86,7 @@ export function buildCaption(listing = {}) {
   if (listing.bedrooms) bb.push(`${listing.bedrooms} bd`);
   if (listing.bathrooms) bb.push(`${listing.bathrooms} ba`);
   if (bb.length) lines.push(bb.join('  ·  '));
-  if (listing.address) lines.push(String(listing.address));
+  if (listing.address) lines.push(...wrapText(listing.address, config.captionWrapChars));
   return lines.join('\n');
 }
 

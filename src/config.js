@@ -36,8 +36,15 @@ export const config = {
   musicVolumeNoVoice: Number(process.env.MUSIC_VOLUME_NO_VOICE) || 0.6, // louder if no narration
 
   // Render tuning.
-  width: 1920,
-  height: 1080,
+  // Vertical 9:16 — the native format for WhatsApp Status, Facebook/Instagram Reels, TikTok.
+  width: 1080,
+  height: 1920,
+  // Working canvas the zoom runs on (1.33x the output, same pixel count as the old landscape
+  // pre-scale so memory is unchanged). Must keep the output's 9:16 aspect ratio.
+  preWidth: 1440,
+  preHeight: 2560,
+  // Caption wraps at this many characters so it fits the 1080-wide frame (box + margins).
+  captionWrapChars: 30,
   fps: 30,
   clipSeconds: 3.5,
   transitionSeconds: 0.6,

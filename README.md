@@ -52,7 +52,9 @@ vars from `.env.example`. After the first deploy, put the service's public URL *
   renders silent rather than failing.
 - **Background music** is deferred: set `MUSIC_PATH` to a bundled royalty-free track to enable
   mixing; until then reels render without music.
-- **Format** is 1920×1080 landscape (matches property photos). Switch to vertical/social by
-  changing `width`/`height` in `src/config.js`.
+- **Format** is 1080×1920 vertical 9:16 (WhatsApp Status, Facebook/Instagram Reels). Each photo
+  is fitted whole over a blurred copy of itself, so landscape photos are never cropped. Size and
+  caption wrap width live in `src/config.js` (`width`/`height`, `preWidth`/`preHeight`,
+  `captionWrapChars`); keep `preWidth`/`preHeight` at the same 9:16 ratio as the output.
 - The FFmpeg filtergraph in `src/video.js` is the piece to validate on the first real render —
   any failure sends `status:'failed'` so the listing is never stuck in `pending`.
