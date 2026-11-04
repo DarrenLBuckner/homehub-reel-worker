@@ -17,7 +17,7 @@ try {
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'homehub-reel-worker' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'homehub-reel-worker', commit: (process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown').slice(0, 7), minPhotos: config.minPhotos }));
 
 app.post('/render', (req, res) => {
   // Auth: Bearer must equal the shared REEL_WORKER_API_KEY.

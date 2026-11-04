@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { config } from './config.js';
 import { log } from './log.js';
+import { downloadStorageObject } from './storage.js';
 
 export async function makeWorkDir(propertyId) {
   const base = path.join(os.tmpdir(), 'reel-');
@@ -19,24 +20,55 @@ export async function cleanup(dir) {
   }
 }
 
-// Download up to config.maxImages images to the workdir. Returns local file paths, in order.
-export async function downloadImages(urls, dir) {
+// A listing photo stored in the property-images bucket, however the address was written
+// (public object URL, or the render/image form). The bucket may be private, so these are read
+// with the service key, never over plain HTTP.
+const STORAGE_PHOTO = /\/storage\/v1\/(?:object|render\/image)\/public\/property-images\/([^?#]+)/i;
+
+// What the downloaded bytes really are (by content, never by the address), so the file gets the
+// right extension and an unreadable download (an error page, a HEIC) is caught here, not by ffmpeg.
+function sniffImage(buf) {
+  if (!buf || buf.length < 1024) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  if (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
+  return null;
+}
+
+async function fetchPhotoBytes(url) {
+  const m = STORAGE_PHOTO.exec(url);
+  if (m) {
+    return downloadStorageObject('property-images', decodeURIComponent(m[1]));
+  }
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return Buffer.from(await resp.arrayBuffer());
+}
+
+// Download up to config.maxImages images to the workdir, in order. Returns
+// { files, failures }: every photo that could not be loaded is logged with the listing id and
+// the file, and listed in failures. The caller decides whether the job may go on (it must not
+// when anything failed: a reel is never published short or partial).
+export async function downloadImages(urls, dir, propertyId = '?') {
   const limited = urls.slice(0, config.maxImages);
-  const out = [];
+  const files = [];
+  const failures = [];
   for (let i = 0; i < limited.length; i++) {
     const url = limited[i];
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      log.warn('skipping image (fetch failed)', resp.status, url);
-      continue;
+    try {
+      const buf = await fetchPhotoBytes(url);
+      const ext = sniffImage(buf);
+      if (!ext) throw new Error('not a readable JPEG/PNG/WebP image');
+      const file = path.join(dir, `img_${String(i).padStart(3, '0')}.${ext}`);
+      await fs.writeFile(file, buf);
+      files.push(file);
+    } catch (e) {
+      const name = String(url).split('/').slice(-2).join('/');
+      log.error('PHOTO DOWNLOAD FAILED', 'listing', propertyId, 'file', name, 'reason', e?.message || e);
+      failures.push({ index: i, file: name, reason: String(e?.message || e) });
     }
-    const buf = Buffer.from(await resp.arrayBuffer());
-    const file = path.join(dir, `img_${String(i).padStart(3, '0')}.jpg`);
-    await fs.writeFile(file, buf);
-    out.push(file);
   }
-  if (out.length === 0) throw new Error('no images could be downloaded');
-  return out;
+  return { files, failures };
 }
 
 // Fallback user_id derivation: images live at property-images/{user_id}/{file}.

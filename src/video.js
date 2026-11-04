@@ -214,3 +214,25 @@ export async function renderVideo(imagePaths, listing, narrationPath, musicPath,
   log.info('render complete', final);
   return final;
 }
+
+// Length a reel of N photos must have (the crossfade formula used by renderVideo).
+export function expectedDuration(photoCount) {
+  return config.clipSeconds + (photoCount - 1) * (config.clipSeconds - config.transitionSeconds);
+}
+
+// Real length of a finished video in seconds (ffprobe ships with ffmpeg in the image).
+export function probeDuration(videoPath) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', videoPath], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let out = '';
+    proc.stdout.on('data', (d) => (out += d.toString()));
+    proc.on('error', reject);
+    proc.on('close', (code) => {
+      const secs = Number.parseFloat(out.trim());
+      if (code === 0 && Number.isFinite(secs)) return resolve(secs);
+      reject(new Error(`ffprobe failed (code ${code})`));
+    });
+  });
+}
