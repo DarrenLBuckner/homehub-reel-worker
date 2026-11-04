@@ -49,6 +49,10 @@ export const config = {
   clipSeconds: 3.5,
   transitionSeconds: 0.6,
   maxImages: 12, // bound render time / cost
+  // Quality gate: a reel needs at least this many photos, and every photo it was asked to use.
+  minPhotos: 3,
+  // A finished reel smaller than this per photo is broken (normal reels run 400-700 KB per photo).
+  minBytesPerPhoto: 120 * 1024,
   fontFile: process.env.CAPTION_FONT || '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
   // Cap x264 threads. In a container, x264 otherwise auto-detects the HOST core count
   // (e.g. 34) and allocates per-thread encoder buffers on init — which SIGKILLs the

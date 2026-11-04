@@ -32,3 +32,11 @@ export async function uploadVideo(localPath, objectPath) {
   log.info('uploaded', objectPath, '->', data.publicUrl);
   return data.publicUrl;
 }
+
+// Read an object with the service key (works whether or not the bucket is public).
+// Returns the bytes as a Buffer; throws with the storage error message if it cannot be read.
+export async function downloadStorageObject(bucket, objectPath) {
+  const { data, error } = await client().storage.from(bucket).download(objectPath);
+  if (error || !data) throw new Error(`storage read failed: ${error?.message || 'no data'}`);
+  return Buffer.from(await data.arrayBuffer());
+}
